@@ -1,4 +1,3 @@
-import pkg_resources
 import sys
 import logging
 
@@ -7,11 +6,6 @@ __author__ = 'RoGeorge'
 
 def log_running_python_versions():
     logging.info("Python version: " + str(sys.version) + ", " + str(sys.version_info))  # () required in Python 3.
-
-    installed_packages = pkg_resources.working_set
-    installed_packages_list = sorted(["%s==%s" % (i.key, i.version) for i in installed_packages])
-    logging.info("Installed Python modules: " + str(installed_packages_list))
-
 
 def command(tn, scpi):
     logging.info("SCPI to be sent: " + scpi)
@@ -53,7 +47,11 @@ def command_bin(tn, scpi):
 #   The integer will be the length of the data stream (in bytes)
 # after all the data bytes, the last char is '\n'
 def tmc_header_bytes(buff):
-    return 2 + int(buff[1:2].decode())
+    # we either receive a string or bytes. Handle then accordingly.
+    if isinstance(buff, bytes):
+        return 2 + int(buff[1:2].decode())
+    else:
+        return 2 + int(buff[1])
 
 
 def expected_data_bytes(buff):
