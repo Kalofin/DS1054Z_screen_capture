@@ -11,7 +11,6 @@ import sys
 import os
 import platform
 import logging
-import win32clipboard
 
 __version__ = 'v2.0.0'
 __author__ = 'RoGeorge'
@@ -74,50 +73,51 @@ script_name = os.path.basename(sys.argv[0])
 
 
 def copy_image_to_clipboard(image: Image):
-    # Convert image to RGB if needed
-    if image.mode != 'RGB':
-        image = image.convert('RGB')
+    if platform.system() == "Windows":
+        import win32clipboard
 
-    # Get image dimensions
-    width, height = image.size
+        # Convert image to RGB if needed
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
 
-    # Convert RGB to BGR for Windows DIB
-    # Use NumPy to swap R and B channels
-    # Get the pixel data as a list of (R, G, B) tuples
-    rgb_pixels = list(image.getdata())
+        # Get image dimensions
+        width, height = image.size
 
-    # Convert to bytes in BGR format
-    gbr_bytes = bytes(comp for pixel in rgb_pixels for comp in (pixel[2], pixel[1], pixel[0]))
+        # Convert RGB to BGR for Windows DIB
+        # Use NumPy to swap R and B channels
+        # Get the pixel data as a list of (R, G, B) tuples
+        rgb_pixels = list(image.getdata())
 
-    # Create BITMAPINFOHEADER for DIB
-    bmi_header = struct.pack(
-        '<LllHHLLllLL',
-        40,  # biSize (size of header)
-        width,  # biWidth
-        -height,  # biHeight (negative for top-down DIB)
-        1,  # biPlanes
-        24,  # biBitCount (24 bits for RGB)
-        0,  # biCompression (BI_RGB = uncompressed)
-        len(gbr_bytes),  # biSizeImage
-        0,  # biXPelsPerMeter
-        0,  # biYPelsPerMeter
-        0,  # biClrUsed
-        0  # biClrImportant
-    )
+        # Convert to bytes in BGR format
+        gbr_bytes = bytes(comp for pixel in rgb_pixels for comp in (pixel[2], pixel[1], pixel[0]))
 
-    # Combine header and pixel data for DIB
-    dib_data = bmi_header + gbr_bytes
+        # Create BITMAPINFOHEADER for DIB
+        bmi_header = struct.pack(
+            '<LllHHLLllLL',
+            40,  # biSize (size of header)
+            width,  # biWidth
+            -height,  # biHeight (negative for top-down DIB)
+            1,  # biPlanes
+            24,  # biBitCount (24 bits for RGB)
+            0,  # biCompression (BI_RGB = uncompressed)
+            len(gbr_bytes),  # biSizeImage
+            0,  # biXPelsPerMeter
+            0,  # biYPelsPerMeter
+            0,  # biClrUsed
+            0  # biClrImportant
+        )
 
-    # Copy to clipboard
-    try:
+        # Combine header and pixel data for DIB
+        dib_data = bmi_header + gbr_bytes
+
+        # Copy to clipboard
         win32clipboard.OpenClipboard()
         win32clipboard.EmptyClipboard()
         win32clipboard.SetClipboardData(win32clipboard.CF_DIB, dib_data)
         win32clipboard.CloseClipboard()
         print("Copied to clipboard")
-    except ImportError:
-        print("win32clipboard not available. This script requires pywin32 on Windows.")
-        return
+    else:
+        print(f"Copying screen shots to the clipboard on {platform.system()} is not supported yet.")
 
 
 def parse_arguments():
