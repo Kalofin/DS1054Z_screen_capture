@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import argparse
+import struct
 
 from telnetlib_receive_all import Telnet
 from Rigol_functions import *
@@ -9,10 +11,9 @@ import sys
 import os
 import platform
 import logging
+import win32clipboard
 
-__version__ = 'v1.1.0'
-# Added TMC Blockheader decoding
-# Added possibility to manually allow run for scopes other then DS1000Z
+__version__ = 'v2.0.0'
 __author__ = 'RoGeorge'
 
 #
@@ -45,19 +46,18 @@ __author__ = 'RoGeorge'
 #
 
 # Set the desired logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s',
-                    filename=os.path.basename(sys.argv[0]) + '.log',
-                    filemode='w')
+logger = logging.getLogger()  # Root logger
+log_filename = os.path.basename(sys.argv[0]) + '.log'
+# Do not create the log file unless there is someting to write to this file (delay=True)
+handler = logging.FileHandler(log_filename, mode='w', delay=True)
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.setLevel(logging.ERROR)
 
 logging.info("***** New run started...")
 logging.info("OS Platform: " + str(platform.uname()))
 log_running_python_versions()
-
-# Update the next lines for your own default settings:
-path_to_save = "captures/"
-save_format = "PNG"
-IP_DS1104Z = "192.168.1.3"
 
 # Rigol/LXI specific constants
 port = 5555
@@ -73,61 +73,87 @@ serial = 2
 script_name = os.path.basename(sys.argv[0])
 
 
-def print_help():
-    print()
-    print("Usage:")
-    print("    " + "python " + script_name + " png|bmp|csv [oscilloscope_IP [save_path]]")
-    print()
-    print("Usage examples:")
-    print("    " + "python " + script_name + " png")
-    print("    " + "python " + script_name + " csv 192.168.1.3")
-    print()
-    print("The following usage cases are not yet implemented:")
-    print("    " + "python " + script_name + " bmp 192.168.1.3 my_place_for_captures")
-    print()
-    print("This program captures either the waveform or the whole screen")
-    print("    of a Rigol DS1000Z series oscilloscope, then save it on the computer")
-    print("    as a CSV, PNG or BMP file with a timestamp in the file name.")
-    print()
-    print("    The program is using LXI protocol, so the computer")
-    print("    must have LAN connection with the oscilloscope.")
-    print("    USB and/or GPIB connections are not used by this software.")
-    print()
-    print("    No VISA, IVI or Rigol drivers are needed.")
-    print()
+def copy_image_to_clipboard(image: Image):
+    # Convert image to RGB if needed
+    if image.mode != 'RGB':
+        image = image.convert('RGB')
 
-# Read/verify file type
-if len(sys.argv) <= 1:
-    print_help()
-    sys.exit("Warning - wrong command line parameters.")
-elif sys.argv[1].lower() not in ["png", "bmp", "csv"]:
-    print_help()
-    print("This file type is not supported: ", sys.argv[1])
-    sys.exit("ERROR")
+    # Get image dimensions
+    width, height = image.size
 
-file_format = sys.argv[1].lower()
+    # Convert RGB to BGR for Windows DIB
+    # Use NumPy to swap R and B channels
+    # Get the pixel data as a list of (R, G, B) tuples
+    rgb_pixels = list(image.getdata())
 
-# Read IP
-if len(sys.argv) > 1:
-    IP_DS1104Z = sys.argv[2]
+    # Convert to bytes in BGR format
+    gbr_bytes = bytes(comp for pixel in rgb_pixels for comp in (pixel[2], pixel[1], pixel[0]))
 
-# Check network response (ping)
-if platform.system() == "Windows":
-    response = os.system("ping -n 1 " + IP_DS1104Z + " > nul")
-else:
-    response = os.system("ping -c 1 " + IP_DS1104Z + " > /dev/null")
+    # Create BITMAPINFOHEADER for DIB
+    bmi_header = struct.pack(
+        '<LllHHLLllLL',
+        40,  # biSize (size of header)
+        width,  # biWidth
+        -height,  # biHeight (negative for top-down DIB)
+        1,  # biPlanes
+        24,  # biBitCount (24 bits for RGB)
+        0,  # biCompression (BI_RGB = uncompressed)
+        len(gbr_bytes),  # biSizeImage
+        0,  # biXPelsPerMeter
+        0,  # biYPelsPerMeter
+        0,  # biClrUsed
+        0  # biClrImportant
+    )
 
-if response != 0:
-    print()
-    print("WARNING! No response pinging " + IP_DS1104Z)
-    print("Check network cables and settings.")
-    print("You should be able to ping the oscilloscope.")
+    # Combine header and pixel data for DIB
+    dib_data = bmi_header + gbr_bytes
+
+    # Copy to clipboard
+    try:
+        win32clipboard.OpenClipboard()
+        win32clipboard.EmptyClipboard()
+        win32clipboard.SetClipboardData(win32clipboard.CF_DIB, dib_data)
+        win32clipboard.CloseClipboard()
+        print("Copied to clipboard")
+    except ImportError:
+        print("win32clipboard not available. This script requires pywin32 on Windows.")
+        return
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description="Capture waveform or screen from Rigol DS1000Z series oscilloscope using LXI protocol over LAN",
+    )
+    parser.add_argument(
+        '-f', '--format',
+        choices=['png', 'bmp', 'csv', 'clip'],
+        default='clip',
+        help=f'File format to save capture. \'clip\' just copies the image data to the clipboard. Default: \'%(default)s\''
+    )
+    parser.add_argument(
+        '-i', '--ip',
+        default='192.168.1.60',
+        help=f'Oscilloscope IP address. Default: \'%(default)s\''
+    )
+    parser.add_argument(
+        '-p', '--path',
+        default='captures',
+        help=f'Path to save captures. Only relevant for PNG, BMP or CSV exports.  Default: \'%(default)s\''
+    )
+    args = parser.parse_args()
+    return args.format.lower(), args.ip, args.path
+
+
+# Parse command-line arguments
+file_format, IP_DS1104Z, path_to_save = parse_arguments()
+path_to_save = os.path.normpath(path_to_save)
+file_format = file_format.lower()
 
 # Open a modified telnet session
 # The default telnetlib drops 0x00 characters,
 #   so a modified library 'telnetlib_receive_all' is used instead
 tn = Telnet(IP_DS1104Z, port)
-instrument_id = command(tn, "*IDN?")    # ask for instrument ID
+instrument_id = command(tn, "*IDN?")  # ask for instrument ID
 
 # Check if instrument is set to accept LAN commands
 if instrument_id == "command error":
@@ -142,18 +168,16 @@ if (id_fields[company] != "RIGOL TECHNOLOGIES") or \
         (id_fields[model][:2] != "DS"):
     print("Found instrument model", "'" + id_fields[model] + "'", "from", "'" + id_fields[company] + "'")
     print("WARNING: No Rigol from series DS1000Z found at", IP_DS1104Z)
-    print()
-    typed = input("ARE YOU SURE YOU WANT TO CONTINUE? (No/Yes):")
-    if typed != 'Yes':
-        sys.exit('Nothing done. Bye!')
+    sys.exit('Nothing done. Bye!')
 
 print("Instrument ID:", instrument_id)
 
-# Prepare filename as C:\MODEL_SERIAL_YYYY-MM-DD_HH.MM.SS
+# generate the output file name - we will not use it if we copy to the clipboard only.
 timestamp = time.strftime("%Y-%m-%d_%H.%M.%S", time.localtime())
-filename = path_to_save + id_fields[model] + "_" + id_fields[serial] + "_" + timestamp
+filename = os.path.join(path_to_save,
+                        f"{id_fields[model].replace(" ", "_")}_{id_fields[serial]}_{timestamp}.{file_format}")
 
-if file_format in ["png", "bmp"]:
+if file_format in ["png", "bmp", "clip"]:
     # Ask for an oscilloscope display print screen
     print("Receiving screen capture...")
     buff = command_bin(tn, ":DISP:DATA?")
@@ -177,12 +201,18 @@ if file_format in ["png", "bmp"]:
     # Strip TMC Blockheader and keep only the data
     tmcHeaderLen = tmc_header_bytes(buff)
     expectedDataLen = expected_data_bytes(buff)
-    buff = buff[tmcHeaderLen: tmcHeaderLen+expectedDataLen]
+    buff = buff[tmcHeaderLen: tmcHeaderLen + expectedDataLen]
 
     # Save as PNG or BMP according to file_format
     im = Image.open(io.BytesIO(buff))
-    im.save(filename + "." + file_format, file_format)
-    print("Saved file:", "'" + filename + "." + file_format + "'")
+    if file_format in ["png", "bmp"]:
+        os.makedirs(path_to_save, exist_ok=True)
+        # Prepare filename as MODEL_SERIAL_YYYY-MM-DD_HH.MM.SS
+        im.save(filename)
+
+        print(f"Saved file: '{filename}'")
+    else:
+        copy_image_to_clipboard(im)
 
 # TODO: Change WAV:FORM from ASC to BYTE
 elif file_format == "csv":
@@ -224,7 +254,6 @@ elif file_format == "csv":
             command(tn, ":WAV:STAR 1")
             command(tn, ":WAV:STOP 1200")
 
-        buff = ""
         print("Data from channel '" + str(channel) + "', points " + str(1) + "-" + str(1200) + ": Receiving...")
         buffChunk = command(tn, ":WAV:DATA?")
 
@@ -241,10 +270,7 @@ elif file_format == "csv":
 
         # Append data chunks
         # Strip TMC Blockheader and terminator bytes
-        buff += buffChunk[tmc_header_bytes(buffChunk):-1] + ","
-
-        # Strip the last \n char
-        buff = buff[:-1]
+        buff = buffChunk[tmc_header_bytes(buffChunk):-1].rstrip()
 
         # Process data
         buff_list = buff.split(",")
@@ -273,10 +299,11 @@ elif file_format == "csv":
                     csv_buff += "," + str(point) + os.linesep
 
     # Save data as CSV
+    os.makedirs(path_to_save, exist_ok=True)
     scr_file = open(filename + "." + file_format, "wb")
-    scr_file.write(csv_buff)
+    scr_file.write(csv_buff.encode())
     scr_file.close()
 
-    print("Saved file:", "'" + filename + "." + file_format + "'")
+    print(f"Saved file: '{filename}'")
 
 tn.close()
