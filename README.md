@@ -24,18 +24,18 @@ The output filename contains the oscilloscope's identification and a timestamp.
 	
 # Installation:
 1. Install Python 3.12
-1. Clone this repository and go to the directorz it was clones to.
-1. Generate a virtual environemt  
+1. Clone this repository and go to the directory it was clones to.
+1. Generate a virtual environment  
     ```python -m venv .venv```
-1. Activate the virtual environemt  
+1. Activate the virtual environment  
     - Windows: ```.venv\Scripts\activate.bat```
     - Others: ```.venv/bin/activate```
-1. Install required packagees in a virtual environment  
-    ````pip install -r requirements.txt````
+1. Install required packages in a virtual environment  
+    ```pip install -r requirements.txt```
 
 
 # Running the script
-1. Connect the oscilloscope to the LAN (in this example, the oscilloscope have fix IP=192.168.1.60)
+1. Connect the oscilloscope to the LAN
 1. In the Command Prompt, change the directory (CD) to the path were 'OscScreenGrabLAN.py' and activate the virtual environment
 1. Run the OscScreenGrabLAN.py in the Command Prompt
    - To take a screenshot and copy it to the clipboard:  
@@ -48,5 +48,5 @@ The output filename contains the oscilloscope's identification and a timestamp.
 # Generate a stand-alone executable
 1. In the Command Prompt, change the directory to the clone of this repository and activate the virtual environment
 1. Run ```generate_executable.bat``` on Windows, or ```./generate_executable.sh``` on other systems
-1. A redistributable executable should now be available in the repositories dicrectory.
+1. A redistributable executable should now be available in the repositories' directory.
     
