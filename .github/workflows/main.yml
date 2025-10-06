@@ -84,7 +84,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/executable-Windows/dist/OscScreenGrabLAN.exe
+        asset_path: artifacts/executable-Windows/OscScreenGrabLAN.exe
         asset_name: DS1054Z_Windows-${{ github.event.inputs.tag || github.ref_name }}.exe
         asset_content_type: application/octet-stream
 
@@ -94,7 +94,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/executable-Linux/dist/OscScreenGrabLAN
+        asset_path: artifacts/executable-Linux/OscScreenGrabLAN
         asset_name: DS1054Z_Linux-${{ github.event.inputs.tag || github.ref_name }}
         asset_content_type: application/octet-stream
 
@@ -104,6 +104,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/executable-macOS/dist/OscScreenGrabLAN
+        asset_path: artifacts/executable-macOS/OscScreenGrabLAN
         asset_name: DS1054Z_macOS-${{ github.event.inputs.tag || github.ref_name }}
         asset_content_type: application/octet-stream
