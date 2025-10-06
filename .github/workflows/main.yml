@@ -1,9 +1,9 @@
-name: Build stand-aloneexecutables
+name: Build stand-alone executables
 
 on:
   push:
     branches:
-      - main      
+      - main
 
 jobs:
   run-script:
