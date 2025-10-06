@@ -41,6 +41,7 @@ jobs:
         pip install -r requirements_windows.txt
 
     - name: Install UPX
+      if: runner.os == 'Windows' || runner.os == 'Linux'
       uses: crazy-max/ghaction-upx@v3
       with:
         install-only: true
