@@ -40,9 +40,14 @@ jobs:
       run: |
         pip install -r requirements_windows.txt
 
+    - name: Install UPX
+      uses: crazy-max/ghaction-upx@v3
+      with:
+        install-only: true
+
     - name: Build executable with PyInstaller
       run: |
-        pyinstaller --onefile OscScreenGrabLAN.py
+        pyinstaller --onefile --console --exclude-module tkinter --strip --noconfirm --clean OscScreenGrabLAN.py
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
