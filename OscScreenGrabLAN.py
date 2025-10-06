@@ -84,11 +84,6 @@ def copy_image_to_clipboard(image: Image):
         width, height = image.size
 
         # Convert RGB to BGR for Windows DIB
-        # Use NumPy to swap R and B channels
-        # Get the pixel data as a list of (R, G, B) tuples
-        rgb_pixels = list(image.getdata())
-
-        # Convert to bytes in BGR format
         gbr_bytes = bytes(comp for pixel in rgb_pixels for comp in (pixel[2], pixel[1], pixel[0]))
 
         # Create BITMAPINFOHEADER for DIB
@@ -98,7 +93,7 @@ def copy_image_to_clipboard(image: Image):
             width,  # biWidth
             -height,  # biHeight (negative for top-down DIB)
             1,  # biPlanes
-            24,  # biBitCount (24 bits for RGB)
+            24,  # biBitCount (24 bits for BGR)
             0,  # biCompression (BI_RGB = uncompressed)
             len(gbr_bytes),  # biSizeImage
             0,  # biXPelsPerMeter
@@ -107,7 +102,7 @@ def copy_image_to_clipboard(image: Image):
             0  # biClrImportant
         )
 
-        # Combine header and pixel data for DIB
+        # Combine header and pixel data for DIB, note each pixel in the order Blue|Green|Red !!!
         dib_data = bmi_header + gbr_bytes
 
         # Copy to clipboard
