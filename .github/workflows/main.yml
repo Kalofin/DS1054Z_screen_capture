@@ -66,16 +66,15 @@ jobs:
 
     - name: Create Release
       id: create_release
-      uses: actions/create-release@v4
+      uses: comnoco/create-release@v2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.event.inputs.tag || github.ref_name }}
-        release_name: Release ${{ github.event.inputs.tag || github.ref_name }}
+        tag_name: ${{ github.event.inputs.tag || github.ref }}
+        release_name: Release ${{ github.event.inputs.tag || github.ref }}
         body: |
           ## What's Changed
           - Built executables for all platforms using PyInstaller.
-          - Download the appropriate ZIP for your OS below.
         draft: false
         prerelease: false
 
