@@ -1,6 +1,7 @@
-name: Build stand-alone executables
+name: Build stand-alone executables (Multi-Platform)
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
